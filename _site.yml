@@ -1,0 +1,12 @@
+name: "Quantitative Analysis and Machine Learning"
+navbar:
+  title: "Quantitative Analysis and Machine Learning"
+  right:
+    - text: "Home"
+      href: index.html
+    - text: "Machine Learning"
+      menu:
+        - text: "Logistic Regression"
+          href: logisticRegression.html
+    - icon: fa-github fa-lg
+      href: http://github.com/MarcoLeti/
