@@ -290,7 +290,7 @@ cat(mean(as.integer(prediction) == y) * 100, &quot;%&quot;)</code></pre>
 <p>In order to show how regularization works we start from a dataset containing 2 independent variables, then we calculate the polynomial of these variables until the 6th grade.</p>
 <p>The dataset represents whether microchips from a fabrication plant passes quality assurance (QA). We have the test results for some microchips on two different tests. The dataset is the same as the one used for the programming assignment of Andrew Ng’s Machine Learning course.</p>
 <pre class="r"><code># include the download of the dataset.
-data &lt;- read.csv(&quot;C:\\Projects\\StanfordMachineLearning\\machine-learning-ex2\\ex2\\ex2data2.txt&quot;, header = F)
+data &lt;- read.csv(&quot;C:\\Git\\StanfordMachineLearning\\machine-learning-ex2\\ex2\\ex2data2.txt&quot;, header = F)
 colnames(data) &lt;- c(&quot;Test1&quot;, &quot;Test2&quot;, &quot;QAResult&quot;)
 X &lt;- as.matrix(data)
 y &lt;- X[, 3]
@@ -357,7 +357,6 @@ as.data.frame(z) %&gt;%
   ggplot() + geom_contour(aes(x = rowname, y = key, z = value), bins = 1) + 
     geom_point(data=data, aes(x = Test1, y = Test2, color = as.factor(QAResult),
                               shape = as.factor(QAResult)), size = 2)</code></pre>
-<pre><code>## Warning: package &#39;bindrcpp&#39; was built under R version 3.4.4</code></pre>
 <p><img src="logisticRegression_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
 </div>
 <div class="footnotes">
