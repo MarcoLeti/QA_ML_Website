@@ -1,0 +1,95 @@
+---
+title: "Interest Rate Swap Exposure - Monte Carlo Simulation"
+output: 
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Parameters
+
+```{r parameters}
+r <- 0.05           # spot interest rate
+a <- 0.1            # mean reversion velocity
+b <- 0.05           # equilibrium
+sigma <- 0.01       # volatility
+swapRate <- 0.05    # swap rate
+```
+
+## Interest Rate Modelling
+
+Vasicek model, the rocess for $$r$$ is:
+
+$dr = a(b - r)dt + \sigma dz$
+
+Discrete version:
+$dr = a(b - r)\Delta t + \sigma \epsilon \sqrt{\Delta t}$
+
+```{r interest}
+dt <- 90/360
+step <- 40
+nsim <- 1000
+IR_model <- matrix(nrow = step + 1, ncol = nsim)
+IR_model[1, 1:nsim] <- r
+for (j in 1:nsim) {
+    for (i in 2:step) {
+        IR_model[i, j] <- IR_model[i - 1, j] + a * (b - r) * dt + rnorm(1) * sqrt(dt) * sigma
+    }
+}
+
+ts.plot(IR_model, gpars = list(col=rainbow(10)))
+```
+
+## Including Plots
+
+Zero-coupon bond prices in Vasicek’s model are given by:
+
+$$P(t,T) = A(t,T)e^{-B(t,T)r(t)}$$
+where
+
+$$B(t,T) = \frac{1-e^{-a(T-t)}}{a}$$
+
+and
+
+$$A(t,T) = \exp{\bigg[\displaystyle\frac{(B(t,T)-T+t)(a^2b-\sigma^2/2)}{a^2}-\frac{\sigma^2B(t,T)^2}{4a}\bigg]}$$
+
+```{r}
+time <- seq(from = 0, to = dt * step, by = dt)
+B <- (1 - exp(-a * time[-1]))/a
+A <- exp(((B - time[-1]) * (a^2 * b - sigma^2 / 2)) / a^2 - (sigma^2 * B^2 / (4 * a)))
+
+fixed_leg <- matrix(nrow = step + 1, ncol = nsim)
+floating_leg <- matrix(nrow = step + 1, ncol = nsim)
+swapMtM <- matrix(nrow = step + 1, ncol = nsim)
+for (j in 1:nsim) {
+    df_matrix <- matrix(nrow = step, ncol = step)
+    for (i in 1:step) {
+        df_length <- step - i + 1
+        df <- A[i] * exp(-B[i] * IR_model[1:df_length, j])
+        length(df) <- step
+        df_matrix[, i] <- df
+    }
+    
+    df_sum <- apply(df_matrix, 1, sum, na.rm = TRUE)
+    fixed_leg[, j] <- c(swapRate * df_sum * dt, 0)
+    floating_leg[, j] <- c(1 - apply(df_matrix, 1, function(x) x[max(which(!is.na(x)))]), 0)
+    swapMtM[, j] <- fixed_leg[, j] - floating_leg[, j]
+}
+
+ts.plot(swapMtM, gpars = list(col=rainbow(10)))
+```
+
+
+```{r}
+EE <- apply(swapMtM, 1, function(x) sum(x[which(x>0)]) / nsim)
+ts.plot(EE, gpars = list(col=rainbow(10)))
+
+distrMat <- t(apply(swapMtM, 1, sort))
+PFE <- distrMat[, nsim * 0.95]
+
+plot(PFE, type = "l", col = "red")
+lines(EE, col = "blue")
+```
