@@ -15,7 +15,7 @@
 
 <script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/paper.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -100,34 +100,34 @@ button.code-folding-btn:focus {
 <style type="text/css">
 /* padding for bootstrap navbar */
 body {
-  padding-top: 51px;
+  padding-top: 64px;
   padding-bottom: 40px;
 }
 /* offset scroll position for anchor links (for fixed navbar)  */
 .section h1 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 69px;
+  margin-top: -69px;
 }
 
 .section h2 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 69px;
+  margin-top: -69px;
 }
 .section h3 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 69px;
+  margin-top: -69px;
 }
 .section h4 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 69px;
+  margin-top: -69px;
 }
 .section h5 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 69px;
+  margin-top: -69px;
 }
 .section h6 {
-  padding-top: 56px;
-  margin-top: -56px;
+  padding-top: 69px;
+  margin-top: -69px;
 }
 </style>
 
@@ -196,6 +196,18 @@ $(document).ready(function () {
     </li>
   </ul>
 </li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+    Financial Modelling
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="IRSExposure.html">Interest Rate Swap Exposure</a>
+    </li>
+  </ul>
+</li>
 <li>
   <a href="http://github.com/MarcoLeti/">
     <span class="fa fa-github fa-lg"></span>
@@ -217,38 +229,58 @@ $(document).ready(function () {
 
 <div id="TOC">
 <ul>
-<li><a href="#parameters">Parameters</a></li>
+<li><a href="#the-background">The background</a></li>
 <li><a href="#interest-rate-modelling">Interest Rate Modelling</a></li>
 <li><a href="#including-plots">Including Plots</a></li>
 </ul>
 </div>
 
-<div id="parameters" class="section level2">
-<h2>Parameters</h2>
-<pre class="r"><code>r &lt;- 0.05           # spot interest rate
+<p>In this page we are going to calculate the PFE (Potential Future Exposure) and the EE (Expected Exposure) of an interest rate swap (IRS). An interest rate swap is a derivative contract where one part pays a floating interest rate, typically LIBOR, and receives a fixed interest rate. Since the future value of the swap is dependent on the floating interest rate, we will be modelling it with the Vasicek model. This model includes mean reversion.</p>
+<pre class="r"><code>library(tidyr)
+library(ggplot2)
+library(RColorBrewer)</code></pre>
+<div id="the-background" class="section level2">
+<h2>The background</h2>
+<p>Consider a 10 years interest rate swap that pays a floating rate and receives a fix rate of 8% per annum with quarterly compounding.</p>
+<pre class="r"><code>r &lt;- 0.02           # spot interest rate
 a &lt;- 0.1            # mean reversion velocity
-b &lt;- 0.05           # equilibrium
+b &lt;- 0.02           # equilibrium
 sigma &lt;- 0.01       # volatility
-swapRate &lt;- 0.05    # swap rate</code></pre>
+swapRate &lt;- 0.02    # swap rate
+dt &lt;- 90/360        # time steps
+step &lt;- 40          # number of steps
+nsim &lt;- 1000        # number of Monte Carlo simulation
+time &lt;- seq(from = 0, to = dt * step, by = dt)
+set.seed(542)</code></pre>
 </div>
 <div id="interest-rate-modelling" class="section level2">
 <h2>Interest Rate Modelling</h2>
-<p>Vasicek model, the rocess for <span class="math display">\[r\]</span> is:</p>
-<p><span class="math inline">\(dr = a(b - r)dt + \sigma dz\)</span></p>
-<p>Discrete version: <span class="math inline">\(dr = a(b - r)\Delta t + \sigma \epsilon \sqrt{\Delta t}\)</span></p>
-<pre class="r"><code>dt &lt;- 90/360
-step &lt;- 40
-nsim &lt;- 1000
-IR_model &lt;- matrix(nrow = step + 1, ncol = nsim)
+<p>Under the Vasicek model, the process for <span class="math inline">\(r\)</span> is given by the following formula:</p>
+<p><span class="math display">\[dr = a(b - r)dt + \sigma dz\]</span></p>
+<p>The discrete version of the model is given by:</p>
+<p><span class="math display">\[dr = a(b - r)\Delta t + \sigma \epsilon \sqrt{\Delta t}\]</span></p>
+<pre class="r"><code>IR_model &lt;- matrix(nrow = step + 1, ncol = nsim)
 IR_model[1, 1:nsim] &lt;- r
 for (j in 1:nsim) {
-    for (i in 2:step) {
+    for (i in 2:(step+1)) {
         IR_model[i, j] &lt;- IR_model[i - 1, j] + a * (b - r) * dt + rnorm(1) * sqrt(dt) * sigma
     }
 }
 
-ts.plot(IR_model, gpars = list(col=rainbow(10)))</code></pre>
-<p><img src="IRSExposure_files/figure-html/interest-1.png" width="672" /></p>
+IR_model_df &lt;- cbind(time, as.data.frame(IR_model))
+colourCount = nsim
+getPalette = colorRampPalette(brewer.pal(12, &quot;Paired&quot;))
+IR_model_df %&gt;%
+    gather(IR, Values, 2:(nsim+1)) %&gt;%
+    ggplot(aes(x = time, y = Values, colour = IR)) + 
+        geom_line(size = 1) + 
+        scale_y_continuous(&quot;Interest Rate Level&quot;, labels = scales::percent) +
+        scale_x_continuous(&quot;Year&quot;) +
+        ggtitle(&quot;Vasicek Interest Rate: Monte Carlo Simulation&quot;) +
+        theme(legend.position=&quot;None&quot;, plot.title = element_text(hjust = 0.5)) + 
+        scale_colour_manual(values = getPalette(colourCount))</code></pre>
+<p><img src="IRSExposure_files/figure-html/interest-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>#ts.plot(IR_model, gpars = list(col=rainbow(10)))</code></pre>
 </div>
 <div id="including-plots" class="section level2">
 <h2>Including Plots</h2>
@@ -257,8 +289,7 @@ ts.plot(IR_model, gpars = list(col=rainbow(10)))</code></pre>
 <p><span class="math display">\[B(t,T) = \frac{1-e^{-a(T-t)}}{a}\]</span></p>
 <p>and</p>
 <p><span class="math display">\[A(t,T) = \exp{\bigg[\displaystyle\frac{(B(t,T)-T+t)(a^2b-\sigma^2/2)}{a^2}-\frac{\sigma^2B(t,T)^2}{4a}\bigg]}\]</span></p>
-<pre class="r"><code>time &lt;- seq(from = 0, to = dt * step, by = dt)
-B &lt;- (1 - exp(-a * time[-1]))/a
+<pre class="r"><code>B &lt;- (1 - exp(-a * time[-1]))/a
 A &lt;- exp(((B - time[-1]) * (a^2 * b - sigma^2 / 2)) / a^2 - (sigma^2 * B^2 / (4 * a)))
 
 fixed_leg &lt;- matrix(nrow = step + 1, ncol = nsim)
@@ -279,17 +310,35 @@ for (j in 1:nsim) {
     swapMtM[, j] &lt;- fixed_leg[, j] - floating_leg[, j]
 }
 
-ts.plot(swapMtM, gpars = list(col=rainbow(10)))</code></pre>
-<p><img src="IRSExposure_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
-<pre class="r"><code>EE &lt;- apply(swapMtM, 1, function(x) sum(x[which(x&gt;0)]) / nsim)
-ts.plot(EE, gpars = list(col=rainbow(10)))</code></pre>
+swapMtM_df &lt;- cbind(time, as.data.frame(swapMtM))
+colourCount = nsim
+getPalette = colorRampPalette(brewer.pal(12, &quot;Paired&quot;))
+swapMtM_df %&gt;%
+    gather(Swap, Values, 2:(nsim+1)) %&gt;%
+    ggplot(aes(x = time, y = Values, colour = Swap)) + 
+        geom_line(size = 1) + 
+        scale_y_continuous(&quot;Swap Value&quot;, labels = scales::percent) +
+        scale_x_continuous(&quot;Year&quot;) +
+        ggtitle(&quot;Interest Rate Swap: Monte Carlo Simulation&quot;) +
+        theme(legend.position=&quot;None&quot;, plot.title = element_text(hjust = 0.5)) + 
+        scale_colour_manual(values = getPalette(colourCount))</code></pre>
 <p><img src="IRSExposure_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
-<pre class="r"><code>distrMat &lt;- t(apply(swapMtM, 1, sort))
+<pre class="r"><code>#ts.plot(swapMtM, gpars = list(col=rainbow(10)))</code></pre>
+<pre class="r"><code>EE &lt;- apply(swapMtM, 1, function(x) sum(x[which(x&gt;0)]) / nsim)
+
+distrMat &lt;- t(apply(swapMtM, 1, sort))
 PFE &lt;- distrMat[, nsim * 0.95]
 
-plot(PFE, type = &quot;l&quot;, col = &quot;red&quot;)
-lines(EE, col = &quot;blue&quot;)</code></pre>
-<p><img src="IRSExposure_files/figure-html/unnamed-chunk-2-2.png" width="672" /></p>
+Exposure_df &lt;- as.data.frame(cbind(time, EE, PFE))
+Exposure_df %&gt;% 
+    gather(ExposureType, Values, EE:PFE) %&gt;%
+    ggplot(aes(x = time, y = Values, colour = ExposureType)) + 
+        geom_line(size = 1) +
+        scale_y_continuous(&quot;Exposure&quot;, labels = scales::percent) +
+        scale_x_continuous(&quot;Year&quot;) +
+        ggtitle(&quot;Interest Rate Swap Exposure&quot;) +
+        theme(legend.position=&quot;None&quot;, plot.title = element_text(hjust = 0.5))</code></pre>
+<p><img src="IRSExposure_files/figure-html/unnamed-chunk-3-1.png" width="672" style="display: block; margin: auto;" /></p>
 </div>
 
 

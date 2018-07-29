@@ -8,5 +8,12 @@ navbar:
       menu:
         - text: "Logistic Regression"
           href: logisticRegression.html
+    - text: "Financial Modelling"
+      menu:
+        - text: "Interest Rate Swap Exposure"
+          href: IRSExposure.html
     - icon: fa-github fa-lg
       href: http://github.com/MarcoLeti/
+output:
+  html_document:
+    theme: paper
