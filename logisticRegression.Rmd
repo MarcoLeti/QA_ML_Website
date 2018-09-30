@@ -222,7 +222,97 @@ as.data.frame(z) %>%
                               shape = as.factor(QAResult)), size = 2)
 ```
 
+# Multi-class Classification
 
+In this part we are going to implement one-vs-all logistic regression to recognize hand-written digits. The data is the MNIST handwritten digit dataset taken from `keras` package [^3].
+
+```{r}
+library(keras)
+```
+
+MNIST consists of 28 x 28 grayscale images of handwritten digits. Let's proceed to load the dataset and create variables for our test and training data.
+
+```{r}
+mnist <- dataset_mnist()
+
+x_train <- mnist$train$x
+y_train <- mnist$train$y
+x_test <- mnist$test$x
+y_test <- mnist$test$y
+```
+
+Visualize:
+```{r}
+par(mfcol=c(6,6))
+par(mar=c(0, 0, 3, 0), xaxs='i', yaxs='i')
+for (idx in 1:36) { 
+    im <- x_train[idx,,]
+    im <- t(apply(im, 2, rev)) 
+    image(1:28, 1:28, im, col=gray((0:255)/255), 
+          xaxt='n', main=paste(y_train[idx]))
+}
+```
+
+The x data is a 3-d array (images, width, height) of grayscale values. To prepare the data for training we convert the 3-d arrays into matrices by reshaping width and height into a single dimension (28x28 images are flattened into length 784 vectors). Then, we convert the grayscale values from integers ranging between 0 to 255 into floating point values ranging between 0 and 1:
+
+```{r}
+# reshape
+x_train <- array_reshape(x_train, c(nrow(x_train), 784))
+x_test <- array_reshape(x_test, c(nrow(x_test), 784))
+# rescale
+x_train <- x_train / 255
+x_test <- x_test / 255
+```
+
+Subset the dataset:
+
+```{r}
+x_train <- x_train[1:5000, ]
+y_train <- y_train[1:5000]
+x_test <- x_test[1:5000, ]
+y_test <- y_test[1:5000]
+```
+
+
+Let's define the one-vs-all function, that will return the thetas for our observations optimized:
+
+```{r}
+oneVsAll <- function(X, y, num_labels, lambda) {
+    
+    initial_theta <- matrix(rep(0, ncol(X) + 1))
+    X <- cbind(matrix(rep(1, nrow(X))), X)
+    y <- matrix(y)
+    
+    all_theta <- matrix(nrow = num_labels, ncol = ncol(X))
+    
+    for (i in 0:(num_labels - 1)) {
+    theta_optim <- optim(par = initial_theta, fn = costFunction, gr = gradient, X = X, y = matrix(as.numeric(y == i)), lambda = lambda, method = "BFGS")
+    
+    all_theta[i + 1, ] <- theta_optim$par
+    }
+    
+    return(all_theta)
+}
+```
+
+We define lambda for regularization and the variable that contains the number of the digits in the dataset.
+
+```{r}
+num_labels <- 10
+lambda <- 0.1
+
+all_theta <- oneVsAll(x_train, y_train, num_labels, lambda)
+```
+
+Once we have the thetas we can perform our prediction and check the performance of our classifier on the test set:
+
+```{r}
+X <- cbind(matrix(rep(1, nrow(x_test))), x_test)
+prediction <- apply(X %*% t(all_theta), 1, which.max) - 1
+cat(mean(as.integer(prediction) == y_test) * 100, "%")
+```
 
 [^1]: James, Witten, Hastie, Tibshirani. *An Introduction to Statistical Learning.* New York: Springer-Verlag, 2013. <http://www-bcf.usc.edu/~gareth/ISL/index.html>
 [^2]: For formula and notation please see: Ng, Andrew. *Machine Learning*. Stanford University. Online course provided by Coursera. <https://www.coursera.org/learn/machine-learning>. 
+[^3]: Keras website shows also how to load and manpulate the package, for completeness, we are reporting some of the information here.
+<https://keras.rstudio.com/>
